@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IconBake — 把图片烘焙成图标字体</title>
+    <meta name="description" content="在浏览器中把 SVG 和 PNG 图片转换成图标字体，纯前端、本地处理。" />
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('iconbake-theme');
+          var theme =
+            saved === 'dark' || saved === 'light'
+              ? saved
+              : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          document.documentElement.dataset.theme = theme;
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

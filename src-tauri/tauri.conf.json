@@ -20,7 +20,8 @@
         "width": 1040,
         "height": 820,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "fileDropEnabled": false
       }
     ],
     "security": { "csp": null },

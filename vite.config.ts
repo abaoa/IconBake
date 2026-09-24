@@ -15,8 +15,8 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
   },
-  // ttf2woff / imagetracerjs are UMD; let Vite pre-bundle them.
+  // clipper-lib / ttf2woff / imagetracerjs are UMD; let Vite pre-bundle them.
   optimizeDeps: {
-    include: ['ttf2woff', 'imagetracerjs', 'opentype.js', 'jszip'],
+    include: ['ttf2woff', 'imagetracerjs', 'opentype.js', 'jszip', 'clipper-lib'],
   },
 })

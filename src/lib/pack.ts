@@ -1,7 +1,7 @@
 // pack.ts
 // Generate the companion assets (CSS, demo HTML, JSON) and a downloadable .zip.
 import JSZip from 'jszip'
-import type { GlyphMeta } from './types'
+import type { GlyphMeta, ResolvedFontMeta } from './types'
 
 /** `@font-face` 声明。`src` 为 CSS 的 src 列表（文件引用或 data URI）。 */
 function fontFaceRules(family: string, src: string): string[] {
@@ -92,14 +92,72 @@ ${items}
 `
 }
 
-export function generateJson(family: string, em: number, meta: GlyphMeta[]): string {
+export function generateJson(
+  family: string,
+  em: number,
+  meta: GlyphMeta[],
+  info?: ResolvedFontMeta
+): string {
   const icons = meta.map(g => ({
     name: g.name,
     cssClass: g.cssClass,
     codepoint: g.codepoint,
     unicode: '0x' + g.unicode,
   }))
-  return JSON.stringify({ family, em, icons }, null, 2) + '\n'
+  // 顺带把字体的元信息（name 表内容）也导出，便于脚本或其他工具复用。
+  const out: Record<string, unknown> = { family, em }
+  if (info) {
+    out.font = {
+      family,
+      styleName: info.styleName,
+      fullName: info.fullName,
+      postScriptName: info.postScriptName,
+      version: info.version,
+      ...(info.copyright ? { copyright: info.copyright } : {}),
+      ...(info.designer ? { designer: info.designer } : {}),
+      ...(info.designerURL ? { designerURL: info.designerURL } : {}),
+      ...(info.manufacturer ? { manufacturer: info.manufacturer } : {}),
+      ...(info.manufacturerURL ? { manufacturerURL: info.manufacturerURL } : {}),
+      ...(info.license ? { license: info.license } : {}),
+      ...(info.licenseURL ? { licenseURL: info.licenseURL } : {}),
+      ...(info.description ? { description: info.description } : {}),
+    }
+  }
+  out.icons = icons
+  return JSON.stringify(out, null, 2) + '\n'
+}
+
+/** README 里的「字体信息」段：只列出真正填了的字段。 */
+function readmeFontInfo(family: string, info?: ResolvedFontMeta): string {
+  if (!info) return ''
+  const rows: Array<[string, string]> = [
+    ['字体名', family],
+    ['样式', info.styleName],
+    ['完整名称', info.fullName],
+    ['PostScript 名', info.postScriptName],
+    ['版本', info.version],
+  ]
+  const optional: Array<[string, string | undefined]> = [
+    ['版权', info.copyright],
+    ['设计者', info.designer],
+    ['设计者链接', info.designerURL],
+    ['制造商', info.manufacturer],
+    ['制造商链接', info.manufacturerURL],
+    ['许可', info.license],
+    ['许可链接', info.licenseURL],
+    ['描述', info.description],
+  ]
+  for (const [k, v] of optional) {
+    if (v) rows.push([k, v])
+  }
+  return `## 字体信息
+
+| 字段 | 值 |
+| --- | --- |
+${rows.map(([k, v]) => `| ${k} | ${v} |`).join('\n')}
+
+（安装到系统后，字体管理器 / 设计软件的「字体信息」里就是这些内容。）
+`
 }
 
 export async function packageZip(
@@ -110,7 +168,8 @@ export async function packageZip(
   woff: Uint8Array,
   css: string,
   html: string,
-  json: string
+  json: string,
+  info?: ResolvedFontMeta
 ): Promise<Blob> {
   const zip = new JSZip()
   zip.file(`${family}.css`, css)
@@ -151,6 +210,7 @@ export async function packageZip(
 
 图标由 CSS 的 \`::before { content: "\\e001" }\` 渲染，所以标签保持空即可。
 
+${readmeFontInfo(family, info)}
 ## 图标清单
 
 | 图标 | class | 码位 |

@@ -52,7 +52,7 @@ export function parsePath(d: string): AbsCmd[] {
         if (!abs) { x += cx; y += cy }
         sx = x; sy = y; cx = x; cy = y
         cmds.push({ t: 'M', x, y })
-        lastCmd = 'M'
+        lastCmd = c
         break
       }
       case 'L': {
@@ -60,7 +60,7 @@ export function parsePath(d: string): AbsCmd[] {
         if (!abs) { x += cx; y += cy }
         cx = x; cy = y
         cmds.push({ t: 'L', x, y })
-        lastCmd = 'L'
+        lastCmd = c
         break
       }
       case 'H': {
@@ -68,7 +68,7 @@ export function parsePath(d: string): AbsCmd[] {
         if (!abs) x += cx
         cx = x
         cmds.push({ t: 'H', x })
-        lastCmd = 'H'
+        lastCmd = c
         break
       }
       case 'V': {
@@ -76,7 +76,7 @@ export function parsePath(d: string): AbsCmd[] {
         if (!abs) y += cy
         cy = y
         cmds.push({ t: 'V', y })
-        lastCmd = 'V'
+        lastCmd = c
         break
       }
       case 'C': {
@@ -85,18 +85,19 @@ export function parsePath(d: string): AbsCmd[] {
         lastCtrlX = x2; lastCtrlY = y2
         cx = x; cy = y
         cmds.push({ t: 'C', x1, y1, x2, y2, x, y })
-        lastCmd = 'C'
+        lastCmd = c
         break
       }
       case 'S': {
         let x2 = num(), y2 = num(), x = num(), y = num()
         if (!abs) { x2 += cx; y2 += cy; x += cx; y += cy }
         let x1 = cx, y1 = cy
-        if (lastCmd === 'C' || lastCmd === 'S') { x1 = 2 * cx - lastCtrlX; y1 = 2 * cy - lastCtrlY }
+        const sPrev = lastCmd.toUpperCase()
+        if (sPrev === 'C' || sPrev === 'S') { x1 = 2 * cx - lastCtrlX; y1 = 2 * cy - lastCtrlY }
         lastCtrlX = x2; lastCtrlY = y2
         cx = x; cy = y
         cmds.push({ t: 'C', x1, y1, x2, y2, x, y })
-        lastCmd = 'S'
+        lastCmd = c
         break
       }
       case 'Q': {
@@ -105,18 +106,19 @@ export function parsePath(d: string): AbsCmd[] {
         lastCtrlX = x1; lastCtrlY = y1
         cx = x; cy = y
         cmds.push({ t: 'Q', x1, y1, x, y })
-        lastCmd = 'Q'
+        lastCmd = c
         break
       }
       case 'T': {
         let x = num(), y = num()
         if (!abs) { x += cx; y += cy }
         let x1 = cx, y1 = cy
-        if (lastCmd === 'Q' || lastCmd === 'T') { x1 = 2 * cx - lastCtrlX; y1 = 2 * cy - lastCtrlY }
+        const tPrev = lastCmd.toUpperCase()
+        if (tPrev === 'Q' || tPrev === 'T') { x1 = 2 * cx - lastCtrlX; y1 = 2 * cy - lastCtrlY }
         lastCtrlX = x1; lastCtrlY = y1
         cx = x; cy = y
         cmds.push({ t: 'Q', x1, y1, x, y })
-        lastCmd = 'T'
+        lastCmd = c
         break
       }
       case 'A': {
@@ -125,13 +127,13 @@ export function parsePath(d: string): AbsCmd[] {
         if (!abs) { x += cx; y += cy }
         cx = x; cy = y
         cmds.push({ t: 'A', rx, ry, rot, la, sp, x, y })
-        lastCmd = 'A'
+        lastCmd = c
         break
       }
       case 'Z': {
         cx = sx; cy = sy
         cmds.push({ t: 'Z' })
-        lastCmd = 'Z'
+        lastCmd = c
         break
       }
       default:
@@ -199,7 +201,7 @@ export function normalize(cmds: AbsCmd[], em = 1000, pad = 64): AbsCmd[] {
 
 // Convert an elliptical-arc command into cubic bezier segments (absolute, y-down
 // authoring space). Returns a list of [x1,y1,x2,y2,x,y] control/end points.
-function arcToCubics(
+export function arcToCubics(
   x1: number, y1: number, rx: number, ry: number, phiDeg: number,
   large: number, sweep: number, x2: number, y2: number
 ): Array<[number, number, number, number, number, number]> {
@@ -245,12 +247,15 @@ function arcToCubics(
     const ex = cx + rxl * Math.cos(a2)
     const ey = cy + ryl * Math.sin(a2)
     const k = (4 / 3) * Math.tan(step / 4)
+    // Tangent of the parametric ellipse at angle a: P'(a) = (-rx·sin a, ry·cos a).
     const t1x = -rxl * Math.sin(a1), t1y = ryl * Math.cos(a1)
     const t2x = -rxl * Math.sin(a2), t2y = ryl * Math.cos(a2)
-    const c1xu = rxl * Math.cos(a1) - k * t1x
-    const c1yu = ryl * Math.sin(a1) - k * t1y
-    const c2xu = rxl * Math.cos(a2) + k * t2x
-    const c2yu = ryl * Math.sin(a2) + k * t2y
+    // c1 = P(a1) + k·P'(a1) and c2 = P(a2) − k·P'(a2). Getting these signs wrong
+    // bends the arc the wrong way (a circle collapses into a diamond).
+    const c1xu = rxl * Math.cos(a1) + k * t1x
+    const c1yu = ryl * Math.sin(a1) + k * t1y
+    const c2xu = rxl * Math.cos(a2) - k * t2x
+    const c2yu = ryl * Math.sin(a2) - k * t2y
     const c1x = cx + c1xu * cosP - c1yu * sinP
     const c1y = cy + c1xu * sinP + c1yu * cosP
     const c2x = cx + c2xu * cosP - c2yu * sinP
